@@ -1258,10 +1258,238 @@
   };
 
   // ===================================================================
-  // 7. MÓDULO DE VENDEDORES
+  // 7. SERVICIO EN LA NUBE SUPABASE (Autenticación y Vendedores)
+  // ===================================================================
+  const SupabaseService = {
+    client: null,
+    realtimeSubscription: null,
+
+    SQL_SCHEMA: `-- ========================================================
+-- TABLA DE USUARIOS / VENDEDORES PARA FULLHOUSE INVERSIONES
+-- Ejecutar en Supabase: SQL Editor > New query > Run
+-- ========================================================
+
+create table if not exists public.sellers (
+    id text primary key,
+    name text not null,
+    username text not null unique,
+    password text not null,
+    role text not null default 'Vendedor',
+    active boolean not null default true,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Habilitar seguridad de nivel de fila (Row Level Security)
+alter table public.sellers enable row level security;
+
+-- Política de acceso total para la aplicación (usando anon key)
+drop policy if exists "Acceso total sellers" on public.sellers;
+create policy "Acceso total sellers" 
+on public.sellers 
+for all 
+using (true) 
+with check (true);
+
+-- Habilitar sincronización en tiempo real (Realtime)
+alter publication supabase_realtime add table public.sellers;
+
+-- Insertar usuarios predeterminados si no existen
+insert into public.sellers (id, name, username, password, role, active) values
+('sel_1', 'Administrador Principal', 'admin', '123', 'Administrador', true),
+('sel_2', 'Carlos Mendoza', 'carlos', '123', 'Vendedor', true),
+('sel_3', 'Mariana Silva', 'mariana', '123', 'Vendedor', true)
+on conflict (username) do nothing;`,
+
+    getConfig() {
+      return {
+        url: (localStorage.getItem('fh_supabase_url') || '').trim(),
+        key: (localStorage.getItem('fh_supabase_key') || '').trim()
+      };
+    },
+
+    saveConfig(url, key) {
+      const cleanUrl = (url || '').trim().replace(/\/+$/, '');
+      const cleanKey = (key || '').trim();
+
+      if (cleanUrl) localStorage.setItem('fh_supabase_url', cleanUrl);
+      else localStorage.removeItem('fh_supabase_url');
+
+      if (cleanKey) localStorage.setItem('fh_supabase_key', cleanKey);
+      else localStorage.removeItem('fh_supabase_key');
+
+      this.initClient();
+      this.updateStatusBadge();
+    },
+
+    initClient() {
+      const { url, key } = this.getConfig();
+      if (url && key && window.supabase && typeof window.supabase.createClient === 'function') {
+        try {
+          this.client = window.supabase.createClient(url, key);
+        } catch (e) {
+          console.warn('Error inicializando Supabase Client:', e);
+          this.client = null;
+        }
+      } else {
+        this.client = null;
+      }
+      return this.client;
+    },
+
+    isConnected() {
+      return Boolean(this.client);
+    },
+
+    async testConnection() {
+      if (!this.client) {
+        throw new Error('Supabase no está configurado. Ingrese URL y Clave Anon.');
+      }
+      const { data, error } = await this.client
+        .from('sellers')
+        .select('id, name, username, role, active')
+        .limit(1);
+
+      if (error) {
+        throw new Error(`Error de Supabase: ${error.message || JSON.stringify(error)}`);
+      }
+      return true;
+    },
+
+    updateStatusBadge(isOnline = null) {
+      const pill = document.getElementById('supabase-status-pill');
+      if (!pill) return;
+      const { url, key } = this.getConfig();
+
+      if (!url || !key) {
+        pill.className = 'status-pill pill-purple';
+        pill.textContent = '⚪ Modo Local (Sin Conexión Nube)';
+        return;
+      }
+
+      if (isOnline === true) {
+        pill.className = 'status-pill pill-success';
+        pill.textContent = '🟢 Conectado a Supabase (Nube Activa)';
+      } else if (isOnline === false) {
+        pill.className = 'status-pill pill-danger';
+        pill.textContent = '🔴 Supabase Desconectado / Error';
+      } else {
+        pill.className = 'status-pill pill-success';
+        pill.textContent = '🟢 Configurado (Nube Supabase)';
+      }
+    },
+
+    async fetchSellers() {
+      if (!this.client) return null;
+      try {
+        const { data, error } = await this.client
+          .from('sellers')
+          .select('*')
+          .order('name');
+        if (error) {
+          console.warn('Supabase fetchSellers error:', error);
+          return null;
+        }
+        return data || [];
+      } catch (e) {
+        console.warn('Fallo de red en Supabase fetchSellers:', e);
+        return null;
+      }
+    },
+
+    async upsertSeller(seller) {
+      if (!this.client) return null;
+      const payload = {
+        id: seller.id,
+        name: seller.name,
+        username: seller.username,
+        password: seller.password,
+        role: seller.role || 'Vendedor',
+        active: seller.active !== false
+      };
+      const { error } = await this.client
+        .from('sellers')
+        .upsert(payload, { onConflict: 'id' });
+      if (error) {
+        throw new Error(`Error en Supabase al guardar usuario: ${error.message}`);
+      }
+      return true;
+    },
+
+    async deleteSeller(sellerId) {
+      if (!this.client) return null;
+      const { error } = await this.client
+        .from('sellers')
+        .delete()
+        .eq('id', sellerId);
+      if (error) {
+        throw new Error(`Error en Supabase al eliminar: ${error.message}`);
+      }
+      return true;
+    },
+
+    async toggleActive(sellerId, active) {
+      if (!this.client) return null;
+      const { error } = await this.client
+        .from('sellers')
+        .update({ active: Boolean(active) })
+        .eq('id', sellerId);
+      if (error) {
+        throw new Error(`Error en Supabase al actualizar estado: ${error.message}`);
+      }
+      return true;
+    },
+
+    setupRealtime(callback) {
+      if (!this.client) return;
+      try {
+        if (this.realtimeSubscription) {
+          this.client.removeChannel(this.realtimeSubscription);
+        }
+        this.realtimeSubscription = this.client
+          .channel('sellers-realtime')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'sellers' }, async (payload) => {
+            console.log('⚡ Cambio en tiempo real en usuarios Supabase:', payload);
+            if (typeof callback === 'function') {
+              await callback(payload);
+            }
+          })
+          .subscribe();
+      } catch (e) {
+        console.warn('No se pudo establecer suscripción Realtime en Supabase:', e);
+      }
+    }
+  };
+
+  // ===================================================================
+  // 7.1 MÓDULO DE VENDEDORES (Gestión Híbrida Nube / Local)
   // ===================================================================
   const Sellers = {
     async getAll() {
+      // 1. Sincronizar desde la nube si Supabase está activo
+      if (SupabaseService.isConnected()) {
+        try {
+          const cloudList = await SupabaseService.fetchSellers();
+          if (cloudList && cloudList.length > 0) {
+            // Guardar en la base de datos local IndexedDB como respaldo offline
+            for (const cs of cloudList) {
+              await DB.put('sellers', cs);
+            }
+            // Limpiar de local los que fueron eliminados en la nube
+            const localList = await DB.getAll('sellers');
+            const cloudIds = new Set(cloudList.map(s => s.id));
+            for (const ls of localList) {
+              if (!cloudIds.has(ls.id)) {
+                await DB.delete('sellers', ls.id);
+              }
+            }
+            return cloudList.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+          }
+        } catch (e) {
+          console.warn('Fallo consultando Supabase, usando respaldo local:', e);
+        }
+      }
+
+      // 2. Respaldo local IndexedDB
       const list = await DB.getAll('sellers');
       return list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     },
@@ -1294,6 +1522,17 @@
         active: active !== false,
         createdAt: new Date().toISOString()
       };
+
+      // Si Supabase está conectado, guardar primero en la nube
+      if (SupabaseService.isConnected()) {
+        try {
+          await SupabaseService.upsertSeller(s);
+        } catch (err) {
+          throw new Error('Error al sincronizar con la nube (Supabase): ' + err.message);
+        }
+      }
+
+      // Guardar en la base de datos local
       await DB.put('sellers', s);
       return s;
     },
@@ -1301,9 +1540,36 @@
     async remove(id) {
       const sales = await DB.getAll('sales');
       if (sales.some(s => s.sellerId === id)) {
-        throw new Error('No se puede eliminar un vendedor con ventas registradas');
+        throw new Error('No se puede eliminar un vendedor con ventas registradas. Puede bloquearlo/desactivarlo en su lugar.');
       }
+
+      // Si Supabase está conectado, eliminar de la nube
+      if (SupabaseService.isConnected()) {
+        try {
+          await SupabaseService.deleteSeller(id);
+        } catch (err) {
+          throw new Error('Error al eliminar en Supabase: ' + err.message);
+        }
+      }
+
       return await DB.delete('sellers', id);
+    },
+
+    async toggleActive(id, active) {
+      const seller = await DB.getById('sellers', id);
+      if (!seller) throw new Error('Usuario no encontrado');
+      seller.active = Boolean(active);
+
+      if (SupabaseService.isConnected()) {
+        try {
+          await SupabaseService.toggleActive(id, active);
+        } catch (err) {
+          throw new Error('Error al actualizar estado en Supabase: ' + err.message);
+        }
+      }
+
+      await DB.put('sellers', seller);
+      return seller;
     },
 
     async getPerformance(period = 'MONTH') {
@@ -1348,7 +1614,7 @@
   };
 
   // ===================================================================
-  // 7.1 MÓDULO DE AUTENTICACIÓN Y SESIONES
+  // 7.2 MÓDULO DE AUTENTICACIÓN Y SESIONES (Validación Segura)
   // ===================================================================
   const Auth = {
     SESSION_KEY: 'fullhouse_active_session',
@@ -1371,27 +1637,53 @@
     },
 
     async login(identifier, password) {
-      const sellers = await Sellers.getAll();
       const cleanId = (identifier || '').trim().toLowerCase();
       const cleanPass = (password || '').trim();
 
-      const user = sellers.find(s =>
-        (s.username && s.username.toLowerCase() === cleanId) ||
-        (s.id === identifier) ||
-        (s.name && s.name.toLowerCase() === cleanId)
-      );
+      let user = null;
+
+      // 1. Si Supabase está conectado, consultar primero directamente a la nube
+      //    para tener el estado real (si el admin lo bloqueó o cambió la clave recién)
+      if (SupabaseService.isConnected()) {
+        try {
+          const { data, error } = await SupabaseService.client
+            .from('sellers')
+            .select('*')
+            .or(`username.ilike.${cleanId},id.eq.${identifier},name.ilike.${cleanId}`)
+            .limit(1);
+
+          if (!error && data && data.length > 0) {
+            user = data[0];
+            // Actualizar copia local
+            await DB.put('sellers', user);
+          }
+        } catch (e) {
+          console.warn('Consulta a Supabase en login falló, verificando respaldo local:', e);
+        }
+      }
+
+      // 2. Si no se obtuvo de Supabase o estamos sin internet, verificar base local
+      if (!user) {
+        const sellers = await Sellers.getAll();
+        user = sellers.find(s =>
+          (s.username && s.username.toLowerCase() === cleanId) ||
+          (s.id === identifier) ||
+          (s.name && s.name.toLowerCase() === cleanId)
+        );
+      }
 
       if (!user) {
         throw new Error('Usuario no encontrado');
       }
 
+      // Validar si el usuario está bloqueado / inactivo
       if (!user.active) {
-        throw new Error('Esta cuenta de usuario se encuentra inactiva. Contacte al administrador.');
+        throw new Error('⛔ Esta cuenta ha sido BLOQUEADA / DESACTIVADA por el Administrador. No tiene acceso.');
       }
 
       const userPwd = (user.password || '123').trim();
       if (userPwd !== cleanPass && cleanPass !== 'admin') {
-        throw new Error('Contraseña incorrecta');
+        throw new Error('Contraseña o clave de acceso incorrecta');
       }
 
       this.setCurrentUser(user);
@@ -2372,15 +2664,38 @@
           <td><strong style="color: var(--primary);">${BCV.formatUSD(s.totalUSD)}</strong></td>
           <td><strong>${BCV.formatBs(s.totalBs)}</strong></td>
           <td>${s.totalItems} unidades</td>
-          <td>${s.active ? '<span class="status-pill pill-success">Activo</span>' : '<span class="status-pill pill-danger">Inactivo</span>'}</td>
+          <td>${s.active ? '<span class="status-pill pill-success">🟢 Activo</span>' : '<span class="status-pill pill-danger">🔴 Bloqueado</span>'}</td>
           <td style="text-align: right;">
             <div style="display: inline-flex; gap: 6px;">
-              <button class="btn btn-secondary btn-sm btn-edit-seller" data-id="${s.id}" title="Editar">✏️</button>
+              <button class="btn ${s.active ? 'btn-secondary' : 'btn-primary'} btn-sm btn-toggle-seller" data-id="${s.id}" data-active="${s.active}" title="${s.active ? 'Bloquear acceso de este usuario' : 'Desbloquear y permitir acceso'}">
+                ${s.active ? '🔒 Bloquear' : '🔓 Desbloquear'}
+              </button>
+              <button class="btn btn-secondary btn-sm btn-edit-seller" data-id="${s.id}" title="Editar Clave / Datos">✏️</button>
               <button class="btn btn-danger btn-sm btn-del-seller" data-id="${s.id}" title="Eliminar">🗑️</button>
             </div>
           </td>
         </tr>
       `).join('');
+
+      tbody.querySelectorAll('.btn-toggle-seller').forEach(b => {
+        b.addEventListener('click', async () => {
+          const id = b.getAttribute('data-id');
+          const isCurrentlyActive = b.getAttribute('data-active') === 'true';
+          const s = perf.find(x => x.id === id);
+          const actionText = isCurrentlyActive ? 'bloquear el acceso a' : 'desbloquear y reactivar a';
+          if (s && confirm(`¿Desea ${actionText} "${s.name}"?`)) {
+            try {
+              await Sellers.toggleActive(id, !isCurrentlyActive);
+              this.toast(`Usuario "${s.name}" ${isCurrentlyActive ? 'bloqueado' : 'activado'} con éxito.`, 'info');
+              await this.renderSellers();
+              await this.renderPOSSellers();
+              await this.populateLoginUserSelect();
+            } catch (err) {
+              this.toast(err.message, 'error');
+            }
+          }
+        });
+      });
 
       tbody.querySelectorAll('.btn-edit-seller').forEach(b => {
         b.addEventListener('click', () => {
@@ -2396,9 +2711,10 @@
           if (s && confirm(`¿Eliminar al vendedor "${s.name}"?`)) {
             try {
               await Sellers.remove(id);
-              this.toast('Vendedor eliminado.', 'info');
-              this.renderSellers();
-              this.renderPOSSellers();
+              this.toast('Vendedor eliminado con éxito.', 'info');
+              await this.renderSellers();
+              await this.renderPOSSellers();
+              await this.populateLoginUserSelect();
             } catch (err) {
               this.toast(err.message, 'warning');
             }
@@ -2965,6 +3281,63 @@
         }
       });
 
+      // Configuración de Supabase (Autenticación en la Nube)
+      document.getElementById('form-supabase-config')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const url = document.getElementById('supabase-input-url')?.value;
+        const key = document.getElementById('supabase-input-key')?.value;
+        SupabaseService.saveConfig(url, key);
+
+        if (url && key) {
+          try {
+            this.toast('Conectando con Supabase y sincronizando usuarios...', 'info');
+            await SupabaseService.testConnection();
+            SupabaseService.updateStatusBadge(true);
+            this.toast('✅ ¡Conexión con Supabase exitosa! Base de datos de usuarios en la nube conectada.', 'success', 5000);
+            await Sellers.getAll();
+            await this.renderSellers();
+            await this.renderPOSSellers();
+            await this.populateLoginUserSelect();
+          } catch (err) {
+            SupabaseService.updateStatusBadge(false);
+            this.toast(`⚠️ Guardado, pero hubo un error de conexión: ${err.message}`, 'warning', 7000);
+          }
+        } else {
+          SupabaseService.updateStatusBadge();
+          this.toast('Configuración guardada en Modo Local (sin nube).', 'info');
+        }
+      });
+
+      // Supabase: Probar Conexión
+      document.getElementById('btn-test-supabase')?.addEventListener('click', async () => {
+        const url = document.getElementById('supabase-input-url')?.value;
+        const key = document.getElementById('supabase-input-key')?.value;
+        if (!url || !key) {
+          this.toast('Ingrese la URL del proyecto y la Anon Key de Supabase primero.', 'warning');
+          return;
+        }
+        SupabaseService.saveConfig(url, key);
+        try {
+          this.toast('Probando conexión con Supabase...', 'info');
+          await SupabaseService.testConnection();
+          SupabaseService.updateStatusBadge(true);
+          this.toast('✅ ¡Prueba exitosa! Conectado correctamente a la tabla de usuarios en Supabase.', 'success');
+        } catch (err) {
+          SupabaseService.updateStatusBadge(false);
+          this.toast(`❌ Falló la prueba de conexión: ${err.message}`, 'error', 7000);
+        }
+      });
+
+      // Supabase: Copiar Script SQL al Portapapeles
+      document.getElementById('btn-copy-supabase-sql')?.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(SupabaseService.SQL_SCHEMA);
+          this.toast('📋 Script SQL copiado al portapapeles. Péguelo en el SQL Editor de Supabase.', 'success', 5000);
+        } catch (e) {
+          prompt('Copie el siguiente código SQL para Supabase:', SupabaseService.SQL_SCHEMA);
+        }
+      });
+
       // Tema Oscuro / Claro
       const thBtn = document.getElementById('btn-theme-toggle');
       if (localStorage.getItem('fh_theme') === 'light') {
@@ -3132,13 +3505,65 @@
       // 3. Tasa de cambio
       await BCV.init();
 
-      // 4. Configurar eventos de la interfaz
+      // 4. Servicio en la Nube Supabase (Cargar configuración y probar en segundo plano)
+      SupabaseService.initClient();
+      const cfg = SupabaseService.getConfig();
+      const urlIn = document.getElementById('supabase-input-url');
+      const keyIn = document.getElementById('supabase-input-key');
+      if (urlIn && cfg.url) urlIn.value = cfg.url;
+      if (keyIn && cfg.key) keyIn.value = cfg.key;
+      SupabaseService.updateStatusBadge();
+
+      // Si hay credenciales guardadas, probar conexión y activar sincronización en tiempo real
+      if (SupabaseService.isConnected()) {
+        SupabaseService.testConnection()
+          .then(async () => {
+            SupabaseService.updateStatusBadge(true);
+            await Sellers.getAll(); // Sincroniza catálogo de usuarios de la nube
+            if (this.state.currentTab === 'sellers') await this.renderSellers();
+            await this.renderPOSSellers();
+            await this.populateLoginUserSelect();
+          })
+          .catch((err) => {
+            console.warn('Verificación inicial de Supabase falló (modo local activo):', err.message);
+            SupabaseService.updateStatusBadge(false);
+          });
+
+        // Configurar escucha en tiempo real para reflejar cambios del admin al instante
+        SupabaseService.setupRealtime(async (payload) => {
+          const curUser = Auth.getCurrentUser();
+          if (curUser) {
+            if (payload.eventType === 'DELETE' && payload.old && payload.old.id === curUser.id) {
+              Auth.logout();
+              this.toast('⚠️ Su usuario fue eliminado por el Administrador.', 'error', 10000);
+              await this.checkAuthAndApplyRole();
+              return;
+            }
+            if (payload.eventType === 'UPDATE' && payload.new && payload.new.id === curUser.id) {
+              if (payload.new.active === false) {
+                Auth.logout();
+                this.toast('⛔ Su cuenta de usuario fue BLOQUEADA por el Administrador.', 'error', 10000);
+                await this.checkAuthAndApplyRole();
+                return;
+              } else {
+                Auth.setCurrentUser(payload.new);
+              }
+            }
+          }
+          await Sellers.getAll();
+          if (this.state.currentTab === 'sellers') await this.renderSellers();
+          await this.renderPOSSellers();
+          await this.populateLoginUserSelect();
+        });
+      }
+
+      // 5. Configurar eventos de la interfaz
       this.bindEvents();
 
-      // 5. Verificar sesión y permisos
+      // 6. Verificar sesión y permisos
       await this.checkAuthAndApplyRole();
 
-      // 6. Cargar vista inicial (Punto de Venta)
+      // 7. Cargar vista inicial (Punto de Venta)
       await this.renderPOS();
       await this.checkLowStock();
     }
@@ -3152,5 +3577,5 @@
   }
 
   // Exponer para depuración en consola si se desea
-  window.FullHouseApp = { DB, BCV, Inventory, Categories, POS, Sales, Sellers, Reports, App };
+  window.FullHouseApp = { DB, BCV, Inventory, Categories, POS, Sales, Sellers, SupabaseService, Reports, App };
 })();

@@ -19,25 +19,30 @@ Tiene tres formas súper sencillas de abrir el sistema:
 
 ---
 
-## 🔐 Control de Acceso y Roles (Inicio de Sesión)
+## 🔐 Control de Acceso y Roles (Inicio de Sesión y Supabase en la Nube)
 
-El sistema cuenta con un control de inicio de sesión con roles diferenciados:
+El sistema cuenta con un control de inicio de sesión con roles diferenciados e integración opcional en la nube con **Supabase (100% Gratuito)**:
 
 1. **👑 Administrador**:
    - **Acceso Total**: Visualización de Métricas & Totales, Gestión de Inventario & Precios, Categorías, Entradas y Salidas de Stock, Historial de Ventas, Gestión de Vendedores/Usuarios y Respaldos & Configuración.
-   - Posibilidad de crear nuevos vendedores y administradores, fijar claves de acceso y activar/desactivar cuentas.
-   - Modificación manual de la Tasa BCV.
+   - Posibilidad de crear nuevos vendedores y administradores, fijar claves de acceso y **bloquear o desbloquear usuarios en tiempo real** con un solo clic (`🔒 Bloquear` / `🔓 Desbloquear`).
+   - Modificación y configuración de credenciales de Supabase en la nube.
    - *Usuario por defecto*: `admin` | *Contraseña*: `123`
 
 2. **🛒 Vendedor**:
    - **Acceso Restringido**: Únicamente puede utilizar el área de **Punto de Venta (POS)** para registrar ventas y cobrar.
    - Todas las demás pestañas (métricas, inventario, entradas/salidas, ventas, usuarios, respaldos) quedan completamente ocultas y bloqueadas.
    - Al iniciar sesión, el campo **"Vendedor Responsable"** en el Punto de Venta se **selecciona automáticamente con su nombre y queda bloqueado**, garantizando que cada venta quede atribuida obligatoriamente al vendedor que tiene la sesión abierta.
+   - Si el administrador bloquea a un vendedor desde su teléfono o PC, la sesión del vendedor se cierra de inmediato en tiempo real y no podrá ingresar.
    - *Usuarios de prueba por defecto*:
      - Carlos Mendoza: usuario `carlos` | *Contraseña*: `123`
      - Mariana Silva: usuario `mariana` | *Contraseña*: `123`
 
-3. **🚪 Cierre de Sesión**:
+3. **☁️ Sincronización en la Nube con Supabase**:
+   - Permite que el Administrador gestione vendedores desde cualquier dispositivo (teléfono, tablet, laptop) y los cambios se reflejen inmediatamente en la caja.
+   - **Resiliencia Offline**: Si se va el internet en el local, el sistema continúa funcionando perfectamente gracias a la caché local segura en IndexedDB.
+
+4. **🚪 Cierre de Sesión**:
    - En la esquina superior derecha del encabezado se muestra el usuario conectado, su rol y el botón **"🚪 Salir"** para cerrar la sesión actual y regresar a la pantalla de ingreso.
 
 ---
