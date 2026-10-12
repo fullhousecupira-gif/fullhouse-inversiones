@@ -12,8 +12,9 @@
   <link rel="stylesheet" href="css/styles.css?v=3.1">
   <style>
     /* =========================================================
-       REGLAS PERMANENTES INMUNES A CACHÉ DEL PUNTO DE VENTA (POS)
+       REGLAS RESPONSIVAS Y PERMANENTES (PC, TABLET Y CELULARES)
        ========================================================= */
+    /* Layout Base (Escritorio / Laptop) */
     .pos-layout {
       display: grid !important;
       grid-template-columns: 1fr 340px !important;
@@ -30,24 +31,67 @@
       }
     }
 
-    @media (max-width: 950px) {
+    @media (max-width: 1050px) and (min-width: 851px) {
       .pos-layout {
         grid-template-columns: 1fr 315px !important;
         gap: 10px !important;
       }
     }
 
-    .pos-catalog-panel {
-      min-width: 0 !important;
-      display: flex !important;
-      flex-direction: column !important;
-      width: 100% !important;
+    /* Adaptación para Celulares y Tablets en vertical (<= 850px) */
+    @media (max-width: 850px) {
+      .pos-layout {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 16px !important;
+        min-height: auto !important;
+        width: 100% !important;
+      }
+
+      .pos-catalog-panel {
+        width: 100% !important;
+      }
+
+      .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+        height: auto !important;
+        max-height: 48vh !important;
+        overflow-y: auto !important;
+        gap: 10px !important;
+      }
+
+      .product-item-card {
+        min-height: 140px !important;
+        height: 150px !important;
+        max-width: 100% !important;
+      }
+
+      .pos-cart-panel {
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        min-height: auto !important;
+        margin-top: 10px !important;
+      }
+
+      .cart-items-container {
+        max-height: 200px !important;
+      }
+
+      .pos-cart-footer {
+        max-height: none !important;
+      }
     }
 
+    /* Cuadrícula de Productos Uniforme en Todas las Categorías */
     .products-grid {
       display: grid !important;
-      grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)) !important;
-      gap: 10px !important;
+      grid-template-columns: repeat(auto-fill, minmax(155px, 215px)) !important;
+      grid-auto-rows: min-content !important;
+      align-content: start !important;
+      align-items: start !important;
+      gap: 12px !important;
       overflow-y: auto !important;
       height: calc(100vh - 195px) !important;
       max-height: calc(100vh - 195px) !important;
@@ -59,6 +103,18 @@
     .product-item-card {
       padding: 12px !important;
       min-width: 0 !important;
+      min-height: 145px !important;
+      height: 155px !important;
+      max-width: 220px !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
+    .pos-catalog-panel {
+      min-width: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
     }
 
     .pos-cart-panel {
@@ -391,6 +447,20 @@
 
           </div>
 
+        </div>
+
+        <!-- Barra Flotante de Carrito para Móviles (Solo Celulares) -->
+        <div id="pos-mobile-cart-bar" class="pos-mobile-cart-bar">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.2rem;">🛒</span>
+            <div>
+              <span id="mobile-cart-count" style="font-weight: 700; font-size: 0.82rem;">0 artículos</span>
+              <div id="mobile-cart-total" style="color: var(--primary); font-weight: 800; font-size: 0.95rem;">$ 0.00</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-mobile-scroll-cart" style="padding: 6px 12px; font-size: 0.82rem;">
+            Ver Carrito 👇
+          </button>
         </div>
       </section>
 

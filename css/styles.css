@@ -1321,3 +1321,255 @@ canvas {
     box-shadow: none;
   }
 }
+
+/* ===================================================================
+   SISTEMA DE DISEÑO RESPONSIVO (PC, LAPTOP, TABLET Y CELULARES)
+   =================================================================== */
+
+/* Barra Flotante de Carrito en Celulares */
+.pos-mobile-cart-bar {
+  display: none;
+}
+
+@media (max-width: 850px) {
+  .pos-mobile-cart-bar {
+    display: flex;
+    position: fixed;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-md);
+    padding: 10px 16px;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    backdrop-filter: blur(8px);
+    animation: slideUpMobile 0.25s ease-out;
+  }
+
+  @keyframes slideUpMobile {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .pos-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+    min-height: auto !important;
+  }
+
+  .pos-catalog-panel {
+    width: 100% !important;
+  }
+
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    height: auto !important;
+    max-height: 52vh !important;
+    overflow-y: auto !important;
+  }
+
+  .product-item-card {
+    min-height: 140px !important;
+    height: 150px !important;
+    max-width: 100% !important;
+  }
+
+  .pos-cart-panel {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: auto !important;
+    margin-top: 12px !important;
+  }
+}
+
+/* Tablets y Laptops Medianas (<= 1024px) */
+@media (max-width: 1024px) {
+  .main-content {
+    padding: 14px 16px;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+/* Celulares y Tablets en Vertical (<= 768px) */
+@media (max-width: 768px) {
+  /* Header compacto en teléfonos */
+  .top-header {
+    padding: 8px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .brand-section {
+    gap: 10px;
+  }
+
+  .brand-logo-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .brand-text h1 {
+    font-size: 1.05rem;
+  }
+
+  .brand-text span {
+    display: none; /* Ahorra espacio vertical valioso en celular */
+  }
+
+  .header-actions {
+    gap: 8px;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .bcv-widget {
+    padding: 4px 10px;
+    gap: 8px;
+  }
+
+  .bcv-rate-value {
+    font-size: 0.9rem;
+  }
+
+  .user-session-widget {
+    padding: 4px 8px;
+    font-size: 0.78rem;
+  }
+
+  /* Barra de Navegación con Desplazamiento Táctil Horizontal Suave */
+  .main-nav {
+    padding: 4px 8px;
+    gap: 6px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+
+  .nav-tab-btn {
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* Área Principal */
+  .main-content {
+    padding: 8px 10px 30px 10px;
+  }
+
+  /* Encabezados de Sección */
+  .section-header {
+    margin-bottom: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .section-title h2 {
+    font-size: 1.25rem;
+  }
+
+  /* Formularios Flexibles */
+  .form-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Modales Adaptados a Pantallas Móviles */
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal-box {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    margin: auto !important;
+    padding: 14px !important;
+  }
+
+  .modal-header {
+    padding: 10px 14px;
+  }
+
+  .modal-body {
+    padding: 10px 14px;
+  }
+
+  .modal-footer {
+    padding: 10px 14px;
+  }
+
+  /* Tablas con desplazamiento táctil horizontal */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-sm);
+  }
+
+  .data-table {
+    font-size: 0.82rem;
+    min-width: 600px; /* Asegura legibilidad y evita aplastamiento */
+  }
+
+  .data-table th, .data-table td {
+    padding: 10px 12px;
+  }
+
+  /* Dashboard KPIs */
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .kpi-card {
+    padding: 12px 14px;
+  }
+
+  .kpi-value-main {
+    font-size: 1.25rem;
+  }
+
+  .chart-container {
+    height: 220px;
+  }
+}
+
+/* Pantallas Pequeñas de Móvil (<= 480px) */
+@media (max-width: 480px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pos-search-bar {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .search-input-wrapper {
+    min-width: 100%;
+  }
+
+  .cart-form-row {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+

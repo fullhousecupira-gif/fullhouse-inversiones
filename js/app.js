@@ -1848,6 +1848,20 @@
       const elBs = document.getElementById('cart-total-bs');
       if (elUSD) elUSD.textContent = BCV.formatUSD(totals.totalUSD);
       if (elBs) elBs.textContent = BCV.formatBs(totals.totalBs);
+
+      // Actualizar Barra Flotante para dispositivos móviles (Celulares)
+      const mobileBar = document.getElementById('pos-mobile-cart-bar');
+      const mCount = document.getElementById('mobile-cart-count');
+      const mTotal = document.getElementById('mobile-cart-total');
+      if (mobileBar) {
+        if (totals.count > 0 && window.innerWidth <= 850) {
+          mobileBar.style.display = 'flex';
+          if (mCount) mCount.textContent = `${totals.count} artículo${totals.count > 1 ? 's' : ''}`;
+          if (mTotal) mTotal.textContent = `${BCV.formatUSD(totals.totalUSD)} (${BCV.formatBs(totals.totalBs)})`;
+        } else {
+          mobileBar.style.display = 'none';
+        }
+      }
     },
 
     // ---- VISTA: INVENTARIO ----
@@ -2548,6 +2562,12 @@
           this.renderPOSCart();
           this.toast('Carrito vaciado.', 'info');
         }
+      });
+
+      // POS: Desplazamiento rápido al carrito en Celulares
+      document.getElementById('btn-mobile-scroll-cart')?.addEventListener('click', () => {
+        const cartEl = document.getElementById('pos-cart-panel');
+        if (cartEl) cartEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
 
       // POS: Eventos de Método de Pago y Abono
