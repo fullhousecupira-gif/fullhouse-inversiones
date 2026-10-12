@@ -1303,7 +1303,7 @@ on conflict (username) do nothing;`,
     getConfig() {
       return {
         url: (localStorage.getItem('fh_supabase_url') || '').trim(),
-        key: (localStorage.getItem('fh_supabase_key') || '').trim()
+        key: (localStorage.getItem('fh_supabase_key') || 'sb_publishable_uOV-v7ImM_NJZMOv8GNlVg_bM7FDT3U').trim()
       };
     },
 
