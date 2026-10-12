@@ -1,0 +1,15 @@
+# Logs y depuración
+*.log
+edge_debug.log
+debug*.txt
+
+# Archivos temporales de Windows y editores
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# Respaldos exportados locales temporales
+*.json.bak
+Respaldo_FullHouse_*.json
