@@ -1302,13 +1302,13 @@ on conflict (username) do nothing;`,
 
     getConfig() {
       return {
-        url: (localStorage.getItem('fh_supabase_url') || '').trim(),
+        url: (localStorage.getItem('fh_supabase_url') || 'https://nyawaflhzqpfcovyahcu.supabase.co').trim(),
         key: (localStorage.getItem('fh_supabase_key') || 'sb_publishable_uOV-v7ImM_NJZMOv8GNlVg_bM7FDT3U').trim()
       };
     },
 
     saveConfig(url, key) {
-      const cleanUrl = (url || '').trim().replace(/\/+$/, '');
+      const cleanUrl = (url || '').trim().replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '');
       const cleanKey = (key || '').trim();
 
       if (cleanUrl) localStorage.setItem('fh_supabase_url', cleanUrl);
@@ -1322,7 +1322,9 @@ on conflict (username) do nothing;`,
     },
 
     initClient() {
-      const { url, key } = this.getConfig();
+      let { url, key } = this.getConfig();
+      if (url) url = url.replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '');
+
       if (url && key && window.supabase && typeof window.supabase.createClient === 'function') {
         try {
           this.client = window.supabase.createClient(url, key);
