@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FullHouse Inversiones C.A | Sistema de Inventario y Ventas</title>
+  <meta name="description" content="Sistema local de control de inventario, punto de venta (POS), cálculo dual en USD y Bolívares con tasa BCV actualizada.">
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css?v=3.1">
+  <style>
+    /* =========================================================
+       REGLAS PERMANENTES INMUNES A CACHÉ DEL PUNTO DE VENTA (POS)
+       ========================================================= */
+    .pos-layout {
+      display: grid !important;
+      grid-template-columns: 1fr 340px !important;
+      gap: 14px !important;
+      align-items: start !important;
+      width: 100% !important;
+      min-height: calc(100vh - 115px) !important;
+    }
+
+    @media (min-width: 1300px) {
+      .pos-layout {
+        grid-template-columns: 1fr 390px !important;
+        gap: 18px !important;
+      }
+    }
+
+    @media (max-width: 950px) {
+      .pos-layout {
+        grid-template-columns: 1fr 315px !important;
+        gap: 10px !important;
+      }
+    }
+
+    .pos-catalog-panel {
+      min-width: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
+    }
+
+    .products-grid {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)) !important;
+      gap: 10px !important;
+      overflow-y: auto !important;
+      height: calc(100vh - 195px) !important;
+      max-height: calc(100vh - 195px) !important;
+      padding-right: 4px !important;
+      padding-bottom: 20px !important;
+      width: 100% !important;
+    }
+
+    .product-item-card {
+      padding: 12px !important;
+      min-width: 0 !important;
+    }
+
+    .pos-cart-panel {
+      background: var(--bg-surface) !important;
+      border: 1px solid var(--border-medium) !important;
+      border-radius: var(--radius-lg) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      box-shadow: var(--shadow-md) !important;
+      height: calc(100vh - 115px) !important;
+      max-height: calc(100vh - 115px) !important;
+      min-height: 480px !important;
+      position: sticky !important;
+      top: 68px !important;
+      overflow: hidden !important;
+      z-index: 10 !important;
+      width: 100% !important;
+    }
+
+    .pos-cart-header {
+      padding: 8px 12px !important;
+      border-bottom: 1px solid var(--border-subtle) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      flex-shrink: 0 !important;
+      background: var(--bg-card) !important;
+    }
+
+    .pos-cart-header h3 {
+      font-size: 0.9rem !important;
+      font-weight: 700 !important;
+    }
+
+    .cart-items-container {
+      flex: 1 1 auto !important;
+      min-height: 50px !important;
+      max-height: 150px !important;
+      overflow-y: auto !important;
+      padding: 6px 10px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 5px !important;
+      background: var(--bg-surface) !important;
+    }
+
+    .cart-empty-state {
+      padding: 8px !important;
+    }
+
+    .cart-empty-icon {
+      font-size: 1.6rem !important;
+      margin-bottom: 2px !important;
+    }
+
+    .cart-empty-state p {
+      font-size: 0.82rem !important;
+    }
+
+    .cart-empty-state small {
+      font-size: 0.72rem !important;
+    }
+
+    .pos-cart-footer {
+      padding: 8px 10px 10px 10px !important;
+      background: var(--bg-card) !important;
+      border-top: 1px solid var(--border-subtle) !important;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 5px !important;
+      overflow-y: auto !important;
+      flex: 0 1 auto !important;
+      max-height: calc(100vh - 195px) !important;
+    }
+
+    .form-group-sm label {
+      font-size: 0.65rem !important;
+      margin-bottom: 1px !important;
+    }
+
+    .select-custom, .input-custom {
+      height: 29px !important;
+      padding: 4px 8px !important;
+      font-size: 0.78rem !important;
+    }
+
+    .pos-client-box {
+      padding: 5px 8px !important;
+      gap: 3px !important;
+    }
+
+    .pos-client-box-title {
+      font-size: 0.68rem !important;
+    }
+
+    .cart-totals-summary {
+      padding: 5px 8px !important;
+      margin-top: 1px !important;
+    }
+
+    .total-usd-big {
+      font-size: 1.1rem !important;
+    }
+
+    .total-bs-big {
+      font-size: 0.88rem !important;
+    }
+
+    #btn-pos-checkout {
+      padding: 8px 12px !important;
+      font-size: 0.86rem !important;
+      margin-top: 2px !important;
+    }
+
+    .main-content {
+      padding: 12px 16px !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-layout">
+    <!-- Top Header -->
+    <header class="top-header">
+      <div class="brand-section">
+        <div class="brand-logo-icon">🏢</div>
+        <div class="brand-text">
+          <h1>FullHouse Inversiones C.A</h1>
+          <span>Control de Inventario & Punto de Venta</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Live BCV Rate Widget -->
+        <div class="bcv-widget" id="header-bcv-widget" title="Tasa Oficial del Banco Central de Venezuela">
+          <div class="bcv-pill">
+            <span class="pulse-dot" id="bcv-status-dot"></span>
+            <span>Tasa BCV</span>
+          </div>
+          <div class="bcv-rate-value" id="header-bcv-rate">876.80 Bs.</div>
+          <button class="btn-icon-subtle" id="btn-sync-bcv" title="Actualizar Tasa BCV Oficial">
+            🔄
+          </button>
+        </div>
+
+        <!-- User Session Indicator & Logout -->
+        <div class="user-session-widget" id="header-user-widget" style="display: flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 5px 12px;">
+          <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-main);" id="header-user-name">👤 Iniciar Sesión</span>
+          <span class="status-pill pill-purple" id="header-user-role" style="font-size: 0.7rem; padding: 2px 7px;">-</span>
+          <button class="btn btn-secondary btn-sm" id="btn-header-logout" title="Cerrar Sesión" style="display: none; padding: 4px 8px; font-size: 0.75rem; margin-left: 4px;">
+            🚪 Salir
+          </button>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button class="btn-icon-subtle" id="btn-theme-toggle" title="Cambiar Tema (Oscuro/Claro)">
+          🌙
+        </button>
+      </div>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav class="main-nav">
+      <button class="nav-tab-btn active" data-tab="pos" id="tab-pos-btn">
+        <span>🛒</span> Punto de Venta (POS)
+      </button>
+      <button class="nav-tab-btn" data-tab="dashboard" id="tab-dashboard-btn">
+        <span>📊</span> Métricas & Totales
+      </button>
+      <button class="nav-tab-btn" data-tab="inventory" id="tab-inventory-btn">
+        <span>📦</span> Inventario & Precios
+        <span class="nav-badge" id="badge-low-stock" style="display: none;">0</span>
+      </button>
+      <button class="nav-tab-btn" data-tab="movements" id="tab-movements-btn">
+        <span>🔄</span> Entradas y Salidas
+      </button>
+      <button class="nav-tab-btn" data-tab="sales" id="tab-sales-btn">
+        <span>📑</span> Historial de Ventas
+      </button>
+      <button class="nav-tab-btn" data-tab="sellers" id="tab-sellers-btn">
+        <span>👥</span> Vendedores
+      </button>
+      <button class="nav-tab-btn" data-tab="settings" id="tab-settings-btn">
+        <span>⚙️</span> Respaldos & Config
+      </button>
+    </nav>
+
+    <!-- Main Container Views -->
+    <main class="main-content">
+
+      <!-- ==========================================
+           1. PUNTO DE VENTA (POS / CAJA)
+           ========================================== -->
+      <section class="view-section active" id="view-pos">
+        <div class="pos-layout">
+          
+          <!-- Catálogo & Búsqueda -->
+          <div class="pos-catalog-panel">
+            <div class="pos-search-bar">
+              <div class="search-input-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="pos-search-input" placeholder="Buscar por nombre, código o código de barras..." autofocus>
+              </div>
+              <button class="btn btn-secondary btn-sm" id="pos-clear-search">Limpiar</button>
+            </div>
+
+            <!-- Categorías -->
+            <div class="pos-categories" id="pos-category-chips">
+              <button class="pos-cat-chip active" data-category="ALL">Todos los Productos</button>
+            </div>
+
+            <!-- Grilla de Productos -->
+            <div class="products-grid" id="pos-products-grid">
+              <!-- Renderizado dinámico -->
+            </div>
+          </div>
+
+          <!-- Carrito de Venta y Cobro (Lateral) -->
+          <div class="pos-cart-panel">
+            <div class="pos-cart-header">
+              <h3><span>🧾</span> Carrito de Venta</h3>
+              <button class="btn-icon-subtle" id="pos-btn-clear-cart" title="Vaciar Carrito">🗑️</button>
+            </div>
+
+            <div class="cart-items-container" id="pos-cart-items">
+              <!-- Renderizado dinámico del carrito -->
+              <div class="cart-empty-state">
+                <div class="cart-empty-icon">🛒</div>
+                <p>El carrito está vacío</p>
+                <small>Haga clic en un producto para agregarlo a la venta</small>
+              </div>
+            </div>
+
+            <!-- Resumen & Cobro -->
+            <div class="pos-cart-footer">
+              <div class="cart-form-row">
+                <div class="form-group-sm">
+                  <label for="pos-seller-select">Vendedor Responsable *</label>
+                  <select id="pos-seller-select" class="select-custom">
+                    <!-- Opciones de vendedores dinámicas -->
+                  </select>
+                </div>
+                <div class="form-group-sm">
+                  <label for="pos-payment-method">Método de Pago</label>
+                  <select id="pos-payment-method" class="select-custom">
+                    <option value="Dólares Efectivo">💵 Dólares Efectivo</option>
+                    <option value="Pago Móvil">📱 Pago Móvil</option>
+                    <option value="Punto de Venta Bs.">💳 Punto de Venta Bs.</option>
+                    <option value="Efectivo Bs.">💴 Efectivo Bs.</option>
+                    <option value="Zelle">🇺🇸 Zelle</option>
+                    <option value="Transferencia">🏦 Transferencia</option>
+                    <option value="Mixto">🔀 Mixto / Combinado</option>
+                    <option value="Abono">📝 Abono / A Crédito</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Datos Obligatorios del Cliente (Para TODOS los métodos de pago) -->
+              <div class="pos-client-box">
+                <div class="pos-client-box-header">
+                  <span class="pos-client-box-title">👤 Datos del Cliente *</span>
+                  <span class="pos-client-box-badge">(Obligatorio)</span>
+                </div>
+
+                <div class="form-group-sm">
+                  <label for="pos-client-name">Nombre y Apellido *</label>
+                  <input type="text" id="pos-client-name" class="input-custom" placeholder="Ej. Juan Pérez" autocomplete="off" required>
+                </div>
+
+                <div class="cart-form-row">
+                  <div class="form-group-sm">
+                    <label for="pos-client-cedula">Cédula de Identidad *</label>
+                    <input type="text" id="pos-client-cedula" class="input-custom" placeholder="Ej. V-12.345.678" autocomplete="off" required>
+                  </div>
+                  <div class="form-group-sm">
+                    <label for="pos-client-phone">Número de Teléfono *</label>
+                    <input type="text" id="pos-client-phone" class="input-custom" placeholder="Ej. 0414-1234567" autocomplete="off" required>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Panel interactivo cuando el método es Abono -->
+              <div id="pos-abono-panel" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <strong style="color: #f59e0b; font-size: 0.78rem;">📝 VENTA A CRÉDITO / ABONO</strong>
+                  <span style="font-size: 0.7rem; color: var(--text-muted);">Fraccionado</span>
+                </div>
+                <div class="cart-form-row">
+                  <div class="form-group-sm">
+                    <label for="pos-abono-amount-usd">¿Cuánto abona hoy? ($)</label>
+                    <input type="number" id="pos-abono-amount-usd" class="input-custom" step="0.01" min="0" placeholder="0.00">
+                  </div>
+                  <div class="form-group-sm">
+                    <label for="pos-abono-amount-bs">En Bolívares (Bs.)</label>
+                    <input type="number" id="pos-abono-amount-bs" class="input-custom" step="0.01" min="0" placeholder="0.00">
+                  </div>
+                </div>
+                <div class="pos-abono-summary">
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Total a pagar:</span>
+                    <strong id="pos-abono-total-display">$ 0.00 (0.00 Bs.)</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--text-muted);">Abona hoy:</span>
+                    <strong id="pos-abono-paid-display" style="color: var(--primary);">$ 0.00 (0.00 Bs.)</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border-subtle); padding-top: 2px;">
+                    <span style="color: #f87171; font-weight: 700;">RESTA POR PAGAR:</span>
+                    <strong id="pos-abono-due-display" style="color: #f87171; font-size: 0.88rem;">$ 0.00 (0.00 Bs.)</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="cart-totals-summary">
+                <div class="cart-total-line">
+                  <span style="font-size: 0.85rem; color: var(--text-muted);">Total en Dólares ($):</span>
+                  <span class="total-usd-big" id="cart-total-usd">$ 0.00</span>
+                </div>
+                <div class="cart-total-line">
+                  <span style="font-size: 0.85rem; color: var(--text-muted);">Total en Bolívares (Bs.):</span>
+                  <span class="total-bs-big" id="cart-total-bs">0.00 Bs.</span>
+                </div>
+              </div>
+
+              <button class="btn btn-primary btn-lg" id="btn-pos-checkout" style="width: 100%;">
+                <span>⚡</span> Procesar Venta & Restar Stock
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ==========================================
+           2. DASHBOARD / MÉTRICAS & TOTALES
+           ========================================== -->
+      <section class="view-section" id="view-dashboard">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Panel de Control y Resumen de Ventas</h2>
+            <p>Monitoreo en tiempo real de ingresos diarios, semanales, mensuales e inventario.</p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary btn-sm" id="dash-btn-today">Hoy</button>
+            <button class="btn btn-secondary btn-sm" id="dash-btn-week">Esta Semana</button>
+            <button class="btn btn-secondary btn-sm" id="dash-btn-month">Este Mes</button>
+          </div>
+        </div>
+
+        <!-- Tarjetas KPIs -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Ventas Hoy (USD)</span>
+              <div class="kpi-icon emerald">💵</div>
+            </div>
+            <div class="kpi-value-main" id="kpi-today-usd">$ 0.00</div>
+            <div class="kpi-value-sub" id="kpi-today-bs">0.00 Bs.</div>
+            <div class="kpi-footer" id="kpi-today-count">0 ventas realizadas hoy</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Ventas Esta Semana</span>
+              <div class="kpi-icon cyan">📅</div>
+            </div>
+            <div class="kpi-value-main" id="kpi-week-usd">$ 0.00</div>
+            <div class="kpi-value-sub" id="kpi-week-bs">0.00 Bs.</div>
+            <div class="kpi-footer" id="kpi-week-count">0 ventas esta semana</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Ventas Este Mes</span>
+              <div class="kpi-icon blue">📈</div>
+            </div>
+            <div class="kpi-value-main" id="kpi-month-usd">$ 0.00</div>
+            <div class="kpi-value-sub" id="kpi-month-bs">0.00 Bs.</div>
+            <div class="kpi-footer" id="kpi-month-count">0 ventas este mes</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Artículos con Bajo Stock</span>
+              <div class="kpi-icon gold">⚠️</div>
+            </div>
+            <div class="kpi-value-main" id="kpi-low-stock-count" style="color: #fbbf24;">0</div>
+            <div class="kpi-value-sub" id="kpi-out-stock-count" style="color: #f87171;">0 agotados</div>
+            <div class="kpi-footer">Requieren reposición inmediata</div>
+          </div>
+        </div>
+
+        <!-- Dashboard Layout Split -->
+        <div class="dashboard-grid">
+          <!-- Gráfico de Ventas -->
+          <div class="card-panel">
+            <div class="card-panel-header">
+              <h3>Tendencia de Ventas (Últimos 7 Días en USD)</h3>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">Actualizado automáticamente</span>
+            </div>
+            <div class="chart-container">
+              <canvas id="sales-trend-canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Top Vendedores -->
+          <div class="card-panel">
+            <div class="card-panel-header">
+              <h3>Rendimiento de Vendedores</h3>
+            </div>
+            <div id="dash-top-sellers-list" style="display: flex; flex-direction: column; gap: 12px;">
+              <!-- Renderizado de vendedores -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           3. INVENTARIO & PRECIOS
+           ========================================== -->
+      <section class="view-section" id="view-inventory">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Catálogo de Inventario y Precios</h2>
+            <p>Control de existencias, costos, modificación de precios en $ y Bs.</p>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-secondary btn-sm" id="btn-export-inventory-csv">
+              📊 Exportar a Excel (CSV)
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-open-categories-modal">
+              🏷️ Gestionar Categorías
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-open-movement-modal">
+              🔄 Registrar Entrada / Salida
+            </button>
+            <button class="btn btn-primary btn-sm" id="btn-new-product">
+              ➕ Nuevo Producto
+            </button>
+          </div>
+        </div>
+
+        <!-- Filtros de Inventario -->
+        <div class="card-panel" style="padding: 16px; margin-bottom: 16px;">
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+            <div class="search-input-wrapper" style="flex: 2; min-width: 260px;">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="inv-search-input" placeholder="Buscar por nombre o código...">
+            </div>
+            <div style="flex: 1; min-width: 180px;">
+              <select id="inv-filter-category" class="select-custom">
+                <option value="ALL">Todas las Categorías</option>
+              </select>
+            </div>
+            <div style="flex: 1; min-width: 180px;">
+              <select id="inv-filter-stock" class="select-custom">
+                <option value="ALL">Todos los Estados</option>
+                <option value="AVAILABLE">Con Existencia</option>
+                <option value="LOW">Alerta: Bajo Stock</option>
+                <option value="OUT">Agotados (Stock 0)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla de Inventario -->
+        <div class="card-panel" style="padding: 0; overflow: hidden;">
+          <div class="table-responsive">
+            <table class="data-table" id="inventory-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Producto</th>
+                  <th>Categoría</th>
+                  <th>Stock Actual</th>
+                  <th>Precio USD ($)</th>
+                  <th>Precio BCV (Bs.)</th>
+                  <th>Costo USD</th>
+                  <th>Estado</th>
+                  <th style="text-align: right;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-table-body">
+                <!-- Filas dinámicas -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           4. ENTRADAS Y SALIDAS (MOVIMIENTOS)
+           ========================================== -->
+      <section class="view-section" id="view-movements">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Registro de Entradas y Salidas de Mercancía</h2>
+            <p>Auditoría completa de movimientos de stock con motivos, fechas y responsables.</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary btn-sm" id="btn-export-movements-csv">
+              📊 Exportar Movimientos
+            </button>
+            <button class="btn btn-primary btn-sm" id="btn-quick-movement">
+              ➕ Registrar Movimiento
+            </button>
+          </div>
+        </div>
+
+        <div class="card-panel" style="padding: 0; overflow: hidden;">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Fecha y Hora</th>
+                  <th>Tipo</th>
+                  <th>Código</th>
+                  <th>Producto</th>
+                  <th>Cantidad</th>
+                  <th>Stock Anterior</th>
+                  <th>Stock Nuevo</th>
+                  <th>Motivo / Razón</th>
+                  <th>Responsable</th>
+                </tr>
+              </thead>
+              <tbody id="movements-table-body">
+                <!-- Filas dinámicas de movimientos -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           5. HISTORIAL DE VENTAS
+           ========================================== -->
+      <section class="view-section" id="view-sales">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Historial Detallado de Ventas</h2>
+            <p>Consulta cuánto se vendió diariamente, semanalmente, mensualmente y qué vendedor lo realizó.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-export-sales-csv">
+            📊 Exportar Ventas a Excel
+          </button>
+        </div>
+
+        <!-- Barra de Filtros -->
+        <div class="card-panel" style="padding: 16px; margin-bottom: 16px;">
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button class="btn btn-secondary btn-sm sales-period-btn active" data-period="TODAY">Hoy</button>
+              <button class="btn btn-secondary btn-sm sales-period-btn" data-period="WEEK">Esta Semana</button>
+              <button class="btn btn-secondary btn-sm sales-period-btn" data-period="MONTH">Este Mes</button>
+              <button class="btn btn-secondary btn-sm sales-period-btn" data-period="DEBT">📝 Con Saldo Pendiente</button>
+              <button class="btn btn-secondary btn-sm sales-period-btn" data-period="ALL">Todas</button>
+            </div>
+
+            <div style="flex: 1; min-width: 180px;">
+              <select id="sales-filter-seller" class="select-custom">
+                <option value="ALL">Todos los Vendedores</option>
+              </select>
+            </div>
+
+            <div class="search-input-wrapper" style="flex: 1; min-width: 220px;">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="sales-search-input" placeholder="Buscar N° venta, cliente, cédula, teléfono...">
+            </div>
+          </div>
+        </div>
+
+        <!-- Métricas del Filtro Seleccionado -->
+        <div class="kpi-grid" style="margin-bottom: 16px;">
+          <div class="kpi-card" style="padding: 14px 18px;">
+            <span class="kpi-title">Total Período (USD)</span>
+            <div class="kpi-value-main" id="sales-period-total-usd" style="font-size: 1.4rem;">$ 0.00</div>
+          </div>
+          <div class="kpi-card" style="padding: 14px 18px;">
+            <span class="kpi-title">Total Período (Bs.)</span>
+            <div class="kpi-value-main" id="sales-period-total-bs" style="font-size: 1.4rem; color: var(--accent-cyan);">0.00 Bs.</div>
+          </div>
+          <div class="kpi-card" style="padding: 14px 18px;">
+            <span class="kpi-title">Ventas Realizadas</span>
+            <div class="kpi-value-main" id="sales-period-count" style="font-size: 1.4rem;">0</div>
+          </div>
+          <div class="kpi-card" style="padding: 14px 18px;">
+            <span class="kpi-title">Unidades Vendidas</span>
+            <div class="kpi-value-main" id="sales-period-units" style="font-size: 1.4rem;">0</div>
+          </div>
+        </div>
+
+        <!-- Tabla de Ventas -->
+        <div class="card-panel" style="padding: 0; overflow: hidden;">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>N° Venta</th>
+                  <th>Fecha de Venta</th>
+                  <th>Vendedor</th>
+                  <th title="Nombre y Apellido, Cédula de Identidad y Teléfono">Cliente (CI / Tel)</th>
+                  <th>Artículos</th>
+                  <th>Método</th>
+                  <th>Total a Pagar</th>
+                  <th>Abonado</th>
+                  <th>Falta por Pagar</th>
+                  <th>Estado</th>
+                  <th style="text-align: right;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="sales-table-body">
+                <!-- Filas dinámicas -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           6. VENDEDORES
+           ========================================== -->
+      <section class="view-section" id="view-sellers">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Equipo de Vendedores</h2>
+            <p>Control de vendedores, cajeros y resumen de rendimiento individual.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-new-seller">
+            ➕ Agregar Vendedor
+          </button>
+        </div>
+
+        <div class="card-panel" style="padding: 0; overflow: hidden;">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Usuario</th>
+                  <th>Rol / Cargo</th>
+                  <th>Ventas Este Mes</th>
+                  <th>Total Vendido ($)</th>
+                  <th>Total Vendido (Bs.)</th>
+                  <th>Unidades</th>
+                  <th>Estado</th>
+                  <th style="text-align: right;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="sellers-table-body">
+                <!-- Filas dinámicas -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================
+           7. RESPALDOS & CONFIGURACIÓN
+           ========================================== -->
+      <section class="view-section" id="view-settings">
+        <div class="section-header">
+          <div class="section-title">
+            <h2>Configuración y Copias de Seguridad</h2>
+            <p>Ajustes de tasa de cambio, datos de la empresa y respaldo de seguridad local.</p>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <!-- Configuración de Tasa BCV y Empresa -->
+          <div class="card-panel">
+            <h3 style="margin-bottom: 16px;">Tasa de Cambio del Banco Central (BCV)</h3>
+            <div style="background: var(--bg-card); padding: 18px; border-radius: var(--radius-md); margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-weight: 600;">Tasa Actual del Sistema:</span>
+                <span style="font-size: 1.3rem; font-weight: 800; color: var(--primary);" id="settings-current-rate-display">876.80 Bs.</span>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;" id="settings-rate-update-time">
+                Última sincronización: --
+              </p>
+              <div style="display: flex; gap: 10px;">
+                <button class="btn btn-primary btn-sm" id="settings-btn-sync-api">
+                  🔄 Consultar Tasa Oficial BCV Ahora
+                </button>
+              </div>
+            </div>
+
+            <h3 style="margin-bottom: 16px;">Datos de FullHouse Inversiones C.A</h3>
+            <form id="form-company-settings">
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label>Nombre de la Empresa</label>
+                <input type="text" id="setting-company-name" class="form-control" value="FullHouse Inversiones C.A">
+              </div>
+              <div class="form-row" style="margin-bottom: 12px;">
+                <div class="form-group">
+                  <label>RIF</label>
+                  <input type="text" id="setting-company-rif" class="form-control" value="J-50123456-7">
+                </div>
+                <div class="form-group">
+                  <label>Teléfono de Contacto</label>
+                  <input type="text" id="setting-company-phone" class="form-control" value="0414-1234567">
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom: 16px;">
+                <label>Dirección / Ubicación</label>
+                <input type="text" id="setting-company-address" class="form-control" value="Venezuela">
+              </div>
+              <button type="submit" class="btn btn-secondary btn-sm">💾 Guardar Datos de Empresa</button>
+            </form>
+          </div>
+
+          <!-- Respaldos Locales -->
+          <div class="card-panel">
+            <h3 style="margin-bottom: 16px;">Copia de Seguridad Local (Segura)</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">
+              Todos los datos de FullHouse Inversiones se almacenan en su computadora. Puede descargar un respaldo completo en formato JSON para guardar en un pendrive o restaurar cuando lo necesite.
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <button class="btn btn-primary" id="btn-export-backup-json" style="width: 100%;">
+                💾 Descargar Copia de Seguridad Completa (JSON)
+              </button>
+
+              <div style="border-top: 1px solid var(--border-subtle); margin: 8px 0;"></div>
+
+              <div>
+                <label style="display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; color: var(--text-muted);">
+                  Restaurar desde archivo de respaldo (.json)
+                </label>
+                <input type="file" id="input-import-backup" accept=".json" style="display: none;">
+                <button class="btn btn-secondary" id="btn-trigger-import" style="width: 100%;">
+                  📥 Cargar y Restaurar Respaldo
+                </button>
+              </div>
+
+              <div style="border-top: 1px solid var(--border-subtle); margin: 8px 0;"></div>
+
+              <button class="btn btn-danger btn-sm" id="btn-reset-demo-data">
+                🔄 Restablecer Productos Demostrativos Iniciales
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ========================================================
+       MODALES
+       ======================================================== -->
+
+  <!-- Modal Producto (Crear / Editar) -->
+  <div class="modal-overlay" id="modal-product">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-product-title">Nuevo Producto</h3>
+        <button class="btn-icon-subtle modal-close" data-modal="modal-product">✕</button>
+      </div>
+      <form id="form-product">
+        <input type="hidden" id="prod-form-id">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="prod-form-code">Código / SKU *</label>
+              <input type="text" id="prod-form-code" class="form-control" placeholder="Ej: FH-009" required>
+            </div>
+            <div class="form-group">
+              <label for="prod-form-category">Categoría *</label>
+              <div style="display: flex; gap: 6px;">
+                <select id="prod-form-category" class="select-custom" required style="flex: 1;"></select>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-quick-add-cat" title="Gestionar / Nueva Categoría" style="white-space: nowrap; padding: 6px 12px; font-size: 0.82rem;">🏷️ +</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="prod-form-name">Nombre del Producto *</label>
+            <input type="text" id="prod-form-name" class="form-control" placeholder="Ej: Harina de Trigo 1kg" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="prod-form-stock">Stock Actual *</label>
+              <input type="number" id="prod-form-stock" class="form-control" min="0" value="10" required>
+            </div>
+            <div class="form-group">
+              <label for="prod-form-minstock">Stock Mínimo (Alerta)</label>
+              <input type="number" id="prod-form-minstock" class="form-control" min="0" value="5">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="prod-form-cost">Costo de Compra ($ USD)</label>
+              <input type="number" id="prod-form-cost" class="form-control" step="0.01" min="0" value="0.00">
+            </div>
+            <div class="form-group">
+              <label for="prod-form-price">Precio de Venta ($ USD) *</label>
+              <input type="number" id="prod-form-price" class="form-control" step="0.01" min="0" value="1.00" required>
+            </div>
+          </div>
+
+          <div style="background: var(--bg-card); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <div style="display: flex; justify-content: space-between; font-size: 0.88rem;">
+              <span>Precio estimado en Bolívares (BCV):</span>
+              <strong style="color: var(--primary);" id="prod-form-price-bs-preview">0.00 Bs.</strong>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="prod-form-notes">Notas o Descripción</label>
+            <textarea id="prod-form-notes" class="form-control" rows="2" placeholder="Detalles adicionales..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-close" data-modal="modal-product">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Modificar Precio Rápido -->
+  <div class="modal-overlay" id="modal-quick-price">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>Modificar Precio</h3>
+        <button class="btn-icon-subtle modal-close" data-modal="modal-quick-price">✕</button>
+      </div>
+      <form id="form-quick-price">
+        <input type="hidden" id="quick-price-prod-id">
+        <div class="modal-body">
+          <p id="quick-price-prod-name" style="font-weight: 700; font-size: 1.05rem;"></p>
+          <small id="quick-price-prod-code" style="color: var(--text-muted);"></small>
+
+          <div class="form-group" style="margin-top: 12px;">
+            <label>Precio en Dólares ($ USD)</label>
+            <input type="number" id="quick-price-usd" class="form-control" step="0.01" min="0" required>
+          </div>
+
+          <div class="form-group">
+            <label>Precio en Bolívares (Bs.)</label>
+            <input type="number" id="quick-price-bs" class="form-control" step="0.01" min="0">
+            <small style="color: var(--text-dim); font-size: 0.75rem;">Se calcula según la tasa BCV activa</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-close" data-modal="modal-quick-price">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Actualizar Precio</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Registrar Movimiento (Entrada / Salida) -->
+  <div class="modal-overlay" id="modal-movement">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Registrar Movimiento de Inventario</h3>
+        <button class="btn-icon-subtle modal-close" data-modal="modal-movement">✕</button>
+      </div>
+      <form id="form-movement">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="mov-form-type">Tipo de Movimiento *</label>
+            <select id="mov-form-type" class="select-custom" required>
+              <option value="ENTRADA">📥 ENTRADA (Aumentar stock por compra o reposición)</option>
+              <option value="SALIDA">📤 SALIDA (Disminuir stock por merma, daño o ajuste)</option>
+              <option value="AJUSTE">⚙️ AJUSTE EXACTO (Fijar conteo físico)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="mov-form-product">Seleccionar Producto *</label>
+            <select id="mov-form-product" class="select-custom" required>
+              <!-- Productos dinámicos -->
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="mov-form-quantity">Cantidad *</label>
+              <input type="number" id="mov-form-quantity" class="form-control" min="1" value="1" required>
+            </div>
+            <div class="form-group">
+              <label for="mov-form-user">Responsable</label>
+              <select id="mov-form-user" class="select-custom">
+                <!-- Vendedores -->
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="mov-form-reason">Motivo del Movimiento *</label>
+            <input type="text" id="mov-form-reason" class="form-control" placeholder="Ej: Compra a Distribuidor, Producto vencido, Conteo físico" required>
+          </div>
+
+          <div class="form-group">
+            <label for="mov-form-notes">Observaciones adicionales</label>
+            <input type="text" id="mov-form-notes" class="form-control" placeholder="N° de factura de compra, proveedor, etc.">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-close" data-modal="modal-movement">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Registrar Movimiento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Modal de Inicio de Sesión Obligatorio -->
+  <div class="modal-overlay" id="modal-login" style="background: rgba(5, 8, 16, 0.88); backdrop-filter: blur(10px); z-index: 9999;">
+    <div class="modal-box" style="max-width: 440px; box-shadow: 0 15px 40px rgba(0,0,0,0.6); border: 1px solid var(--border-medium);">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-subtle); padding: 18px 24px; text-align: center; justify-content: center; flex-direction: column; gap: 8px;">
+        <div style="width: 52px; height: 52px; background: linear-gradient(135deg, #10b981, #06b6d4); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4); margin: 0 auto;">
+          🏢
+        </div>
+        <h3 style="font-size: 1.3rem; font-weight: 800; margin-top: 4px;">FullHouse Inversiones C.A</h3>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0;">Control de Inventario & Punto de Venta</p>
+      </div>
+      <form id="form-login">
+        <div class="modal-body" style="padding: 20px 24px; display: flex; flex-direction: column; gap: 14px;">
+          <div class="form-group">
+            <label for="login-user-select" style="font-size: 0.82rem; font-weight: 700;">Seleccionar Usuario / Vendedor *</label>
+            <select id="login-user-select" class="select-custom" style="height: 40px; font-size: 0.9rem;" required>
+              <!-- Opciones dinámicas de usuarios -->
+            </select>
+          </div>
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label for="login-password" style="font-size: 0.82rem; font-weight: 700;">Contraseña / Clave de Acceso *</label>
+              <span style="font-size: 0.72rem; color: var(--primary); cursor: pointer;" id="login-toggle-pwd">👁️ Mostrar</span>
+            </div>
+            <input type="password" id="login-password" class="input-custom" placeholder="Ingrese su clave" style="height: 40px; font-size: 0.9rem;" required autocomplete="current-password">
+          </div>
+          <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 10px 12px; font-size: 0.78rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 2px;">
+            <span style="color: var(--primary); font-weight: 700;">🔑 Credenciales iniciales por defecto:</span>
+            <span>• <strong>Administrador:</strong> usuario <code>admin</code> | clave <code>123</code></span>
+            <span>• <strong>Vendedores:</strong> clave <code>123</code></span>
+          </div>
+        </div>
+        <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid var(--border-subtle); display: flex; gap: 10px;">
+          <button type="submit" class="btn btn-primary btn-lg" style="width: 100%; justify-content: center; height: 42px; font-size: 0.95rem;">
+            🔐 Iniciar Sesión en el Sistema
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Agregar/Editar Vendedor -->
+  <div class="modal-overlay" id="modal-seller">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 id="modal-seller-title">Registrar Vendedor / Usuario</h3>
+        <button class="btn-icon-subtle modal-close" data-modal="modal-seller">✕</button>
+      </div>
+      <form id="form-seller">
+        <input type="hidden" id="seller-form-id">
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-group">
+            <label for="seller-form-name">Nombre Completo *</label>
+            <input type="text" id="seller-form-name" class="form-control" placeholder="Ej: Carlos Mendoza" required>
+          </div>
+          <div class="form-group">
+            <label for="seller-form-username">Nombre de Usuario (Login) *</label>
+            <input type="text" id="seller-form-username" class="form-control" placeholder="Ej: carlos" required autocomplete="off">
+            <small style="color: var(--text-dim); font-size: 0.72rem;">Identificador único para iniciar sesión</small>
+          </div>
+          <div class="form-group">
+            <label for="seller-form-password">Clave de Acceso (Contraseña) *</label>
+            <input type="text" id="seller-form-password" class="form-control" placeholder="Ej: 123" required>
+            <small style="color: var(--text-dim); font-size: 0.72rem;">Clave con la que este usuario iniciará sesión</small>
+          </div>
+          <div class="form-group">
+            <label for="seller-form-role">Rol y Nivel de Acceso *</label>
+            <select id="seller-form-role" class="form-control">
+              <option value="Vendedor">🛒 Vendedor (Solo Punto de Venta / POS)</option>
+              <option value="Administrador">👑 Administrador (Acceso Total y Configuración)</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px;">
+            <input type="checkbox" id="seller-form-active" checked style="width: 18px; height: 18px; cursor: pointer;">
+            <label for="seller-form-active" style="cursor: pointer; margin: 0; font-size: 0.85rem;">Usuario Activo para Iniciar Sesión</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-close" data-modal="modal-seller">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Usuario</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Ticket / Recibo de Venta (Imprimible) -->
+  <div class="modal-overlay" id="modal-ticket">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>Comprobante de Venta</h3>
+        <button class="btn-icon-subtle modal-close" data-modal="modal-ticket">✕</button>
+      </div>
+      <div class="modal-body" id="modal-ticket-content" style="background: #2b3548; padding: 16px;">
+        <!-- Ticket dinámico insertado aquí -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary modal-close" data-modal="modal-ticket">Cerrar</button>
+        <button type="button" class="btn btn-primary" id="btn-print-ticket">
+          🖨️ Imprimir Ticket
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Registrar Nuevo Abono -->
+  <div class="modal-overlay" id="modal-add-payment">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3>Registrar Nuevo Abono</h3>
+        <button class="btn-icon-subtle modal-close" data-modal="modal-add-payment">✕</button>
+      </div>
+      <form id="form-add-payment">
+        <input type="hidden" id="abono-sale-id">
+        <div class="modal-body">
+          <div style="background: var(--bg-card); padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 6px; font-size: 0.88rem;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);">N° de Venta:</span>
+              <strong id="abono-modal-sale-num"></strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);">Fecha en que se vendió:</span>
+              <span id="abono-modal-sale-date" style="font-weight: 600;"></span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);">Cliente:</span>
+              <strong id="abono-modal-sale-client"></strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--border-subtle); padding-top: 4px;">
+              <span style="color: var(--text-muted);">Total a Pagar:</span>
+              <strong id="abono-modal-sale-total" style="color: var(--text-main);"></strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);">Total Abonado hasta ahora:</span>
+              <strong id="abono-modal-sale-paid" style="color: var(--primary);"></strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; border-top: 1px dashed var(--border-medium); padding-top: 4px;">
+              <span style="color: #f87171; font-weight: 700;">FALTA POR PAGAR:</span>
+              <strong id="abono-modal-sale-due" style="color: #f87171; font-size: 1.05rem;"></strong>
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 12px;">
+            <div class="form-group">
+              <label for="abono-input-usd">¿Cuánto abona hoy? ($ USD) *</label>
+              <input type="number" id="abono-input-usd" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+              <label for="abono-input-bs">Monto en Bolívares (Bs.)</label>
+              <input type="number" id="abono-input-bs" class="form-control" step="0.01" min="0.01" placeholder="0.00">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="abono-payment-method">Método de Pago del Abono</label>
+              <select id="abono-payment-method" class="select-custom">
+                <option value="Dólares Efectivo">💵 Dólares Efectivo</option>
+                <option value="Pago Móvil">📱 Pago Móvil</option>
+                <option value="Punto de Venta Bs.">💳 Punto de Venta Bs.</option>
+                <option value="Efectivo Bs.">💴 Efectivo Bs.</option>
+                <option value="Zelle">🇺🇸 Zelle</option>
+                <option value="Transferencia">🏦 Transferencia</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="abono-seller">Vendedor que recibe</label>
+              <select id="abono-seller" class="select-custom"></select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="abono-notes">Referencia / Nota (Opcional)</label>
+            <input type="text" id="abono-notes" class="form-control" placeholder="Ej: N° de Referencia Pago Móvil, recibo manual...">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-close" data-modal="modal-add-payment">Cancelar</button>
+          <button type="submit" class="btn btn-primary">💾 Registrar Abono</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Gestión de Categorías (Crear, Editar, Borrar) -->
+  <div class="modal-overlay" id="modal-categories">
+    <div class="modal-box" style="max-width: 650px;">
+      <div class="modal-header">
+        <div>
+          <h3 style="margin: 0; font-size: 1.15rem;">🏷️ Gestión de Categorías</h3>
+          <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">
+            Cree, edite o elimine las categorías de su tienda (TVs, Cocinas, Muebles, Neveras, Aires, etc.)
+          </p>
+        </div>
+        <button class="btn-icon-subtle modal-close" data-modal="modal-categories">✕</button>
+      </div>
+
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Formulario Crear / Editar Categoría -->
+        <form id="form-category" style="background: var(--bg-card); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 14px 16px;">
+          <input type="hidden" id="cat-form-id">
+          <div style="font-weight: 700; font-size: 0.88rem; margin-bottom: 10px; color: var(--primary);" id="cat-form-title">
+            ➕ Agregar Nueva Categoría
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+              <label for="cat-form-name">Nombre de la Categoría *</label>
+              <input type="text" id="cat-form-name" class="form-control" placeholder="Ej: Neveras, Cocinas, Muebles..." required>
+            </div>
+            <div class="form-group" style="max-width: 140px;">
+              <label for="cat-form-icon">Icono / Emoji</label>
+              <input type="text" id="cat-form-icon" class="form-control" placeholder="Ej: 📺, ❄️, 🍳" value="🏷️">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="cat-form-desc">Descripción (Opcional)</label>
+            <input type="text" id="cat-form-desc" class="form-control" placeholder="Breve detalle de los artículos...">
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-cat-edit" style="display: none;">Cancelar Edición</button>
+            <button type="submit" class="btn btn-primary btn-sm" id="btn-save-cat">💾 Guardar Categoría</button>
+          </div>
+        </form>
+
+        <!-- Lista de Categorías Existentes -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong style="font-size: 0.88rem;">Categorías Activas en el Sistema (<span id="categories-count-badge">0</span>)</strong>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-reset-default-cats" style="font-size: 0.75rem; padding: 4px 8px;" title="Cargar categorías recomendadas de electrodomésticos y muebles">
+              🔄 Cargar Categorías de Tienda
+            </button>
+          </div>
+
+          <div class="table-responsive" style="max-height: 280px; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
+            <table class="data-table" style="font-size: 0.85rem;">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">Icono</th>
+                  <th>Categoría</th>
+                  <th>Descripción</th>
+                  <th style="text-align: center; width: 90px;">Productos</th>
+                  <th style="text-align: right; width: 140px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="categories-table-body">
+                <!-- Filas dinámicas -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary modal-close" data-modal="modal-categories">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Application Logic (Universal Script) -->
+  <script src="js/app.js"></script>
+</body>
+</html>
