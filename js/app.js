@@ -1290,8 +1290,18 @@ for all
 using (true) 
 with check (true);
 
--- Habilitar sincronización en tiempo real (Realtime)
-alter publication supabase_realtime add table public.sellers;
+-- Habilitar sincronización en tiempo real (Realtime de forma segura)
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and tablename = 'sellers'
+  ) then
+    alter publication supabase_realtime add table public.sellers;
+  end if;
+exception
+  when others then null;
+end $$;
 
 -- Insertar usuarios predeterminados si no existen
 insert into public.sellers (id, name, username, password, role, active) values
@@ -1352,6 +1362,9 @@ on conflict (username) do nothing;`,
         .limit(1);
 
       if (error) {
+        if (error.code === 'PGRST205' || (error.message && error.message.includes('Could not find the table'))) {
+          throw new Error("La tabla 'sellers' aún no ha sido creada en Supabase. Debe ejecutar el Script SQL en el SQL Editor de Supabase.");
+        }
         throw new Error(`Error de Supabase: ${error.message || JSON.stringify(error)}`);
       }
       return true;
@@ -1412,6 +1425,9 @@ on conflict (username) do nothing;`,
         .from('sellers')
         .upsert(payload, { onConflict: 'id' });
       if (error) {
+        if (error.code === 'PGRST205' || (error.message && error.message.includes('Could not find the table'))) {
+          throw new Error("La tabla 'sellers' no existe aún en Supabase. Ejecute el Script SQL en Supabase (SQL Editor > Run).");
+        }
         throw new Error(`Error en Supabase al guardar usuario: ${error.message}`);
       }
       return true;
@@ -1424,6 +1440,9 @@ on conflict (username) do nothing;`,
         .delete()
         .eq('id', sellerId);
       if (error) {
+        if (error.code === 'PGRST205' || (error.message && error.message.includes('Could not find the table'))) {
+          return true; // Si la tabla aún no existe en Supabase, permitir eliminar local
+        }
         throw new Error(`Error en Supabase al eliminar: ${error.message}`);
       }
       return true;
@@ -1436,6 +1455,9 @@ on conflict (username) do nothing;`,
         .update({ active: Boolean(active) })
         .eq('id', sellerId);
       if (error) {
+        if (error.code === 'PGRST205' || (error.message && error.message.includes('Could not find the table'))) {
+          throw new Error("La tabla 'sellers' no existe en Supabase. Ejecute el Script SQL en Supabase (SQL Editor > Run).");
+        }
         throw new Error(`Error en Supabase al actualizar estado: ${error.message}`);
       }
       return true;
@@ -1525,17 +1547,19 @@ on conflict (username) do nothing;`,
         createdAt: new Date().toISOString()
       };
 
-      // Si Supabase está conectado, guardar primero en la nube
+      // 1. Guardar primero en la base de datos local (nunca se bloquea el sistema)
+      await DB.put('sellers', s);
+
+      // 2. Si Supabase está conectado, sincronizar en la nube
       if (SupabaseService.isConnected()) {
         try {
           await SupabaseService.upsertSeller(s);
         } catch (err) {
-          throw new Error('Error al sincronizar con la nube (Supabase): ' + err.message);
+          console.warn('Advertencia al sincronizar usuario con Supabase:', err.message);
+          return { ...s, _cloudWarning: err.message };
         }
       }
 
-      // Guardar en la base de datos local
-      await DB.put('sellers', s);
       return s;
     },
 
@@ -1545,16 +1569,19 @@ on conflict (username) do nothing;`,
         throw new Error('No se puede eliminar un vendedor con ventas registradas. Puede bloquearlo/desactivarlo en su lugar.');
       }
 
+      // Eliminar de base local
+      await DB.delete('sellers', id);
+
       // Si Supabase está conectado, eliminar de la nube
       if (SupabaseService.isConnected()) {
         try {
           await SupabaseService.deleteSeller(id);
         } catch (err) {
-          throw new Error('Error al eliminar en Supabase: ' + err.message);
+          console.warn('Advertencia al eliminar en Supabase:', err.message);
         }
       }
 
-      return await DB.delete('sellers', id);
+      return true;
     },
 
     async toggleActive(id, active) {
@@ -1562,15 +1589,19 @@ on conflict (username) do nothing;`,
       if (!seller) throw new Error('Usuario no encontrado');
       seller.active = Boolean(active);
 
+      // 1. Guardar primero en local
+      await DB.put('sellers', seller);
+
+      // 2. Sincronizar en Supabase si está disponible
       if (SupabaseService.isConnected()) {
         try {
           await SupabaseService.toggleActive(id, active);
         } catch (err) {
-          throw new Error('Error al actualizar estado en Supabase: ' + err.message);
+          console.warn('Advertencia al cambiar estado en Supabase:', err.message);
+          return { ...seller, _cloudWarning: err.message };
         }
       }
 
-      await DB.put('sellers', seller);
       return seller;
     },
 
@@ -2687,8 +2718,12 @@ on conflict (username) do nothing;`,
           const actionText = isCurrentlyActive ? 'bloquear el acceso a' : 'desbloquear y reactivar a';
           if (s && confirm(`¿Desea ${actionText} "${s.name}"?`)) {
             try {
-              await Sellers.toggleActive(id, !isCurrentlyActive);
-              this.toast(`Usuario "${s.name}" ${isCurrentlyActive ? 'bloqueado' : 'activado'} con éxito.`, 'info');
+              const res = await Sellers.toggleActive(id, !isCurrentlyActive);
+              if (res && res._cloudWarning) {
+                this.toast(`⚠️ Estado actualizado localmente: ${res._cloudWarning}`, 'warning', 8000);
+              } else {
+                this.toast(`Usuario "${s.name}" ${isCurrentlyActive ? 'bloqueado' : 'activado'} con éxito.`, 'info');
+              }
               await this.renderSellers();
               await this.renderPOSSellers();
               await this.populateLoginUserSelect();
@@ -3179,9 +3214,14 @@ on conflict (username) do nothing;`,
         try {
           const saved = await Sellers.save({ id: id || undefined, name, username, password, role, active });
           this.closeModal('modal-seller');
-          this.toast('Vendedor / Usuario guardado con éxito.', 'success');
-          this.renderSellers();
-          this.renderPOSSellers();
+          if (saved && saved._cloudWarning) {
+            this.toast(`⚠️ Guardado local: ${saved._cloudWarning}`, 'warning', 8000);
+          } else {
+            this.toast('✅ Vendedor / Usuario guardado con éxito.', 'success');
+          }
+          await this.renderSellers();
+          await this.renderPOSSellers();
+          await this.populateLoginUserSelect();
 
           // Si el usuario editó su propia cuenta, refrescar la sesión activa
           const current = Auth.getCurrentUser();
